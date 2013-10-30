@@ -4,8 +4,31 @@ void init_sender(Sender * sender, int id)
 {
     //TODO: You should fill in this function as necessary
     sender->send_id = id;
+    sender->recv_id = -1;
     sender->input_cmdlist_head = NULL;
     sender->input_framelist_head = NULL;
+    
+    sender->pending_head = NULL;
+
+
+    sender->LFS = 0;
+    sender->LAR = 0;
+    sender->SWS = 8;
+    sender->fin = 1;
+
+    sender->buffer = (struct Frame**) malloc(8 * sizeof(Frame*));
+    sender->timestamp = malloc(8 * sizeof(struct timeval));
+
+    int i;
+    struct timeval init_time;
+    init_time.tv_sec = 0;
+
+    for (i = 0; i < 8; i++)
+    {
+	sender->buffer[i] = malloc(1);
+	sender->timestamp[i] = init_time;
+    }
+
 }
 
 struct timeval * sender_get_next_expiring_timeval(Sender * sender)
@@ -26,6 +49,10 @@ void handle_incoming_acks(Sender * sender,
     //    5) Do sliding window protocol for sender/receiver pair   
 }
 
+void handle_pending(Sender * sender,
+                       LLnode ** outgoing_frames_head_ptr)
+{
+}
 
 void handle_input_cmds(Sender * sender,
                        LLnode ** outgoing_frames_head_ptr)
@@ -186,6 +213,8 @@ void * run_sender(void * input_sender)
 
         //Implement this
         handle_input_cmds(sender,
+                          &outgoing_frames_head);
+	handle_pending(sender,
                           &outgoing_frames_head);
 
         pthread_mutex_unlock(&sender->buffer_mutex);

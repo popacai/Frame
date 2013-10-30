@@ -59,15 +59,14 @@ typedef struct LLnode_t LLnode;
 //Receiver and sender data structures
 struct Receiver_t
 {
-    char* message;
-    char* buffer;
-    char* recv_flag;
-    int seq;
-    int ack;
-    int window_size;
+    struct Frame* *buffer;
+    int buffer_pos;
+
+    int LFR; // acked one
+    int LAF; // To be acked
+    int RWS; // 
+
     int fin;
-    int first;
-    int last;
 
     //DO NOT CHANGE:
     // 1) buffer_mutex
@@ -97,23 +96,15 @@ struct Sender_t
     int send_id;
     int recv_id;
 
-    int message_length;
-
-    int length; // per_packet = 
-    //message [first * length : last * length]
-
-    int first; // the windows
-    int last; // the windows
-    int window_size; // the windows size
-    int seq; // the position
-    int fin_seq;
-    int ack; // the ack position
-    int wait_ack;
-    int fin; // whether has been fin or not
-    int goon; //DEBUG one
-    char* message; // the message
-    struct timeval timestamp;
-    struct timeval timeout;
+    LLnode * pending_head;
+    struct Frame* *buffer;
+    struct timeval *timestamp;
+    //SWP
+    int LAR;
+    int LFS;
+    int SWS;
+    int send_full;
+    int fin;
 };
 
 enum SendFrame_DstType 

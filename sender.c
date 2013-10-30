@@ -52,6 +52,23 @@ void handle_incoming_acks(Sender * sender,
 void handle_pending(Sender * sender,
                        LLnode ** outgoing_frames_head_ptr)
 {
+
+    while ((sender->LFS - sender->LAR) < sender->SWS)
+    {
+	int pending_length = ll_get_length(sender->pending_head);
+	//fprintf(stderr, "pending_length=%d\n", pending_length);
+	if (!pending_length)
+	{
+	    sender->fin = 1;
+	    break;
+	}
+	sender->fin = 0;
+	LLnode * ll_message = ll_pop_node(&(sender->pending_head));
+        char * message = (char *) ll_message->value;
+
+	fprintf(stderr, "message=%s\n",message);
+	
+    }
 }
 
 void handle_input_cmds(Sender * sender,
@@ -85,26 +102,11 @@ void handle_input_cmds(Sender * sender,
         //                    Does the receiver have enough space in in it's input queue to handle this message?
         //                    Were the previous messages sent to this receiver ACTUALLY delivered to the receiver?
         int msg_length = strlen(outgoing_cmd->message);
-        if (msg_length > MAX_FRAME_SIZE)
+        if (msg_length)
         {
-            //Do something about messages that exceed the frame size
-            printf("<SEND_%d>: sending messages of length greater than %d is not implemented\n", sender->send_id, MAX_FRAME_SIZE);
-        }
-        else
-        {
-            //This is probably ONLY one step you want
-            Frame * outgoing_frame = (Frame *) malloc (sizeof(Frame));
-            strcpy(outgoing_frame->data, outgoing_cmd->message);
-
             //At this point, we don't need the outgoing_cmd
-            free(outgoing_cmd->message);
             free(outgoing_cmd);
-
-            //Convert the message to the outgoing_charbuf
-            char * outgoing_charbuf = convert_frame_to_char(outgoing_frame);
-            ll_append_node(outgoing_frames_head_ptr,
-                           outgoing_charbuf);
-            free(outgoing_frame);
+	    ll_append_node(&(sender->pending_head), outgoing_cmd->message);
         }
     }   
 }

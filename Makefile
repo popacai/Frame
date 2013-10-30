@@ -32,5 +32,4 @@ submit: clean
 	rm -f project1.tgz; tar czvf project1.tgz *; turnin project1.tgz -c cs123f -p project1
 
 test:
-	#./tritontalk -s 3 -r 3 -d 0.5
-	./tritontalk -s 3 -r 3 
+	bash ./t.sh

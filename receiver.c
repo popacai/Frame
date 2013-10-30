@@ -56,14 +56,17 @@ Frame* build_ack(Receiver * receiver,
     outframe->dst = inframe->src;
     outframe->flag = ACK;
     outframe->seq = inframe->seq;
-    //outframe->ack = inframe->seq;
     outframe->ack = receiver->LFR;
 
-    if (!(inframe->seq > (receiver->LFR % MAX_SEQ)
-	&& inframe->seq <= (receiver->LAF % MAX_SEQ)))
+    //DEBUG
+    //outframe->ack = inframe->seq;
+
+    //if (!(inframe->seq > (receiver->LFR % MAX_SEQ)
+    //	&& inframe->seq <= (receiver->LAF % MAX_SEQ)))
+    if (!((((inframe->seq - receiver->LFR + MAX_SEQ) % MAX_SEQ)> 0) && 
+	(((receiver->LAF - inframe->seq + MAX_SEQ) % MAX_SEQ) >= 0)))
     {
 	fprintf(stderr, "error windows\n");
-	print_f(inframe);
 	print_receiver(receiver);
 	return outframe;
     }
@@ -96,6 +99,7 @@ Frame* build_ack(Receiver * receiver,
     //update the LFR&LAR if all_recv
     if (all_recv)
     {
+	//printf("-----------------------\n");
 	//copy_buffer(receiver, inframe->seq);
 	for (iseq = (receiver->LFR + 1); iseq != (inframe->seq + 1); iseq++)
 	{
@@ -105,6 +109,7 @@ Frame* build_ack(Receiver * receiver,
 	}
 	receiver->LFR = inframe->seq;
 	receiver->LAF = receiver->LFR + receiver->RWS;
+        //printf("-----------------------\n");
     }
 
     outframe->ack = receiver->LFR;
@@ -140,9 +145,10 @@ void handle_incoming_msgs(Receiver * receiver,
 	if (chksum_all(raw_char_buf))
 	{
 	    fprintf(stderr, "chksum error\n");
+	    free(raw_char_buf);
+            free(ll_inmsg_node);
 	    continue;
 	}
-        //Free raw_char_buf
         Frame * inframe = convert_char_to_frame(raw_char_buf);
 	if (inframe->dst == receiver->recv_id)
 	{
@@ -151,10 +157,10 @@ void handle_incoming_msgs(Receiver * receiver,
 
 	    outframe = build_ack(receiver, inframe);
 
-	    //buf = convert_frame_to_char(outframe);
 	    buf = add_chksum(outframe);
+	    print_receiver(receiver);
 	    ll_append_node(outgoing_frames_head_ptr, buf);
-	    //printf("<RECV_%d>:[%s]\n", receiver->recv_id, inframe->data);
+	    free(outframe);
 	}
 
 

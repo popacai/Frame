@@ -6,6 +6,7 @@ char* add_chksum(Frame* frame)
     buf = convert_frame_to_char(frame);
     frame->checksum = chksum(
 	(unsigned short *) buf, MAX_FRAME_SIZE / 2);
+    free(buf);
     buf = convert_frame_to_char(frame);
     return buf;
 }

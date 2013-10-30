@@ -36,7 +36,7 @@ void init_sender(Sender * sender, int id)
 
 
     sender->LFS = 0;
-    sender->LAR = 0;
+    sender->LAR = sender->LFS;
     sender->SWS = 8;
     sender->fin = 1;
 
@@ -64,11 +64,27 @@ struct timeval * sender_get_next_expiring_timeval(Sender * sender)
 
 int recv_ack(Sender* sender, Frame* frame)
 {
+    /*
     if ((frame->ack > sender->LAR )
     	&& (frame->ack <= sender->LFS))
+    */
+    if ((((frame->ack - sender->LAR + MAX_SEQ) % MAX_SEQ) > 0) 
+	&& (((frame->ack - sender->LFS + MAX_SEQ) % MAX_SEQ) <= MAX_SEQ))
     {
 	sender->LAR = frame->ack;
 	fprintf(stderr,"sender_ack:%d\n",sender->LAR);
+	if (sender->LAR == sender->LFS)
+	{
+	    sender->fin = 1;
+	}
+    }
+    else
+    {
+	fprintf(stderr, "DEBUG! NOT WINDWOS ACK\n");
+	fprintf(stderr, "******************************\n");
+	print_frame(frame);
+	print_sender(sender);
+	fprintf(stderr, "******************************\n");
     }
     return 0;
 }
@@ -90,6 +106,8 @@ void handle_incoming_acks(Sender * sender,
 	{
 	    fprintf(stderr, "send checksum error\n");
 	    free(raw_char_buf);
+	    free(ll_inmsg_node);
+	    free(inframe);
 	    continue;
 	}
 
@@ -103,6 +121,7 @@ void handle_incoming_acks(Sender * sender,
 
 	free(inframe);
 	free(raw_char_buf);
+	free(ll_inmsg_node);
     }
 
 }
@@ -116,37 +135,37 @@ Frame* build_frame(Sender* sender, char* message)
     frame->dst = sender->recv_id;
     frame->src = sender->send_id;
 
-    frame->seq = ++(sender->LFS);
+    frame->seq = (sender->LFS);
     frame->ack = sender->LAR;
     frame->flag = SEND;
     frame->size = strlen(message);
     strcpy(frame->data, message);
 
     return frame;
-
 }
 void handle_pending(Sender * sender,
                        LLnode ** outgoing_frames_head_ptr)
 {
 
-    while ((sender->LFS - sender->LAR) < sender->SWS)
+    while ((((sender->LFS - sender->LAR + MAX_SEQ) % MAX_SEQ) < sender->SWS))
     {
 	int pending_length = ll_get_length(sender->pending_head);
 	//fprintf(stderr, "pending_length=%d\n", pending_length);
 	if (!pending_length)
 	{
 	    sender->fin = 1;
-	    break;
+	    return;
 	}
+
+
 	sender->fin = 0;
 	LLnode * ll_message = ll_pop_node(&(sender->pending_head));
-        char * message = (char *) ll_message->value;
+	char * message = (char *) ll_message->value;
 
 	Frame* outframe;
+	sender->LFS = sender->LFS + 1;
 	outframe = build_frame(sender, message);
 	print_frame(outframe);
-
-	//fprintf(stderr, "message=%s\n",message);
 	
 	//copy to buffer
 	unsigned char pos;
@@ -165,6 +184,7 @@ void handle_pending(Sender * sender,
 	
 	ll_append_node(outgoing_frames_head_ptr, buf);
 	free(message);
+	free(ll_message);
     }
 }
 
@@ -200,11 +220,20 @@ void handle_input_cmds(Sender * sender,
         //                    Were the previous messages sent to this receiver ACTUALLY delivered to the receiver?
 	sender->recv_id = outgoing_cmd->dst_id;
         int msg_length = strlen(outgoing_cmd->message);
+	int i;
+	char* message;
         if (msg_length)
         {
             //At this point, we don't need the outgoing_cmd
+	    for (i = 0; i <= (msg_length / (FRAME_PAYLOAD_SIZE - 1)); i++) // we need a char for \0
+	    {
+		message = malloc(FRAME_PAYLOAD_SIZE);
+		strncpy(message, outgoing_cmd->message + i * (FRAME_PAYLOAD_SIZE - 1), FRAME_PAYLOAD_SIZE - 1);
+		fprintf(stderr, "message=%s\n", message);
+		ll_append_node(&(sender->pending_head), message);
+	    }
+	    free(outgoing_cmd->message);
             free(outgoing_cmd);
-	    ll_append_node(&(sender->pending_head), outgoing_cmd->message);
         }
     }   
 }
@@ -222,9 +251,15 @@ void handle_timedout_frames(Sender * sender,
     long long interval;
     //find the timeout and send out
     int pos;
-    int seq;
+    unsigned char seq;
     gettimeofday(&now, NULL);
-    for (seq = (sender->LAR + 1); seq <= sender->LFS; seq++)
+    //for (seq = (sender->LAR + 1); seq <= sender->LFS; seq++)
+    //for (seq = (sender->LAR + 1); (sender->LFS - seq) >= 0; seq++)
+    if (sender->LAR == sender->LFS)
+    {
+	return;
+    }
+    for (seq = (sender->LFS); seq != (sender->LAR); seq--)
     {
 	//seq = sender->LAR + 1;
 	pos = seq % sender->SWS;
@@ -239,11 +274,13 @@ void handle_timedout_frames(Sender * sender,
 		   + (now.tv_usec - tmp.tv_usec);
 
 	//if (interval < 100000)
-	if (interval < 10000)
+	if (interval < 100000)
 	    return;
 	fprintf(stderr, "sender:timeout!seq=%d\n",seq);
 	fprintf(stderr, "sender,now=%ld:%ld\n", now.tv_sec, now.tv_usec);
 	fprintf(stderr, "sender,tmp=%ld:%ld\n", tmp.tv_sec, tmp.tv_usec);
+	print_sender(sender);
+
 	
 	Frame* outgoing_frame;
 	outgoing_frame = (Frame*)sender->buffer[pos];

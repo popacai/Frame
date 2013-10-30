@@ -62,9 +62,9 @@ struct Receiver_t
     struct Frame* *buffer;
     int buffer_pos;
 
-    int LFR; // acked one
-    int LAF; // To be acked
-    int RWS; // 
+    unsigned char LFR; // acked one
+    unsigned char LAF; // To be acked
+    unsigned char RWS; // 
 
     int fin;
 
@@ -100,9 +100,9 @@ struct Sender_t
     struct Frame* *buffer;
     struct timeval *timestamp;
     //SWP
-    int LAR;
-    int LFS;
-    int SWS;
+    unsigned char LAR;
+    unsigned char LFS;
+    unsigned char SWS;
     int send_full;
     int fin;
 };

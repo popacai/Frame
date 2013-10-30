@@ -1,5 +1,29 @@
 #include "sender.h"
+#include "chksum.h"
 
+void print_frame(Frame* frame)
+{
+    fprintf(stderr, "\nframe:\n");
+//    fprintf(stderr, "frame->src=%d\n", frame->src);
+//    fprintf(stderr, "frame->dst=%d\n", frame->dst);
+//    fprintf(stderr, "frame->checksum=%d\n", frame->checksum);
+    fprintf(stderr, "frame->seq=%d\n", frame->seq);
+    fprintf(stderr, "frame->ack=%d\n", frame->ack);
+    fprintf(stderr, "frame->flag=%d\n", frame->flag);
+    fprintf(stderr, "frame->size=%d\n", frame->size);
+    fprintf(stderr, "frame->data=%s\n", frame->data);
+    fprintf(stderr, "#frame--------\n");
+}
+
+void print_sender(Sender* sender)
+{
+    fprintf(stderr, "sender:\n");
+    fprintf(stderr, "sender->LAR=%d\n", sender->LAR);
+    fprintf(stderr, "sender->LFS=%d\n", sender->LFS);
+    fprintf(stderr, "sender->SWS=%d\n", sender->SWS);
+    fprintf(stderr, "sender->full=%d\n", sender->send_full);
+    fprintf(stderr, "sender->fin=%d\n", sender->fin);
+}
 void init_sender(Sender * sender, int id)
 {
     //TODO: You should fill in this function as necessary
@@ -38,17 +62,69 @@ struct timeval * sender_get_next_expiring_timeval(Sender * sender)
 }
 
 
+int recv_ack(Sender* sender, Frame* frame)
+{
+    if ((frame->ack > sender->LAR )
+    	&& (frame->ack <= sender->LFS))
+    {
+	sender->LAR = frame->ack;
+	fprintf(stderr,"sender_ack:%d\n",sender->LAR);
+    }
+    return 0;
+}
 void handle_incoming_acks(Sender * sender,
                           LLnode ** outgoing_frames_head_ptr)
 {
-    //TODO: Suggested steps for handling incoming ACKs
-    //    1) Dequeue the ACK from the sender->input_framelist_head
-    //    2) Convert the char * buffer to a Frame data type
-    //    3) Check whether the frame is corrupted
-    //    4) Check whether the frame is for this sender
-    //    5) Do sliding window protocol for sender/receiver pair   
+    int incoming_msgs_length = ll_get_length(sender->input_framelist_head);
+    while (incoming_msgs_length > 0)
+    {
+        LLnode * ll_inmsg_node = ll_pop_node(&sender->input_framelist_head);
+        incoming_msgs_length = ll_get_length(sender->input_framelist_head);
+        char * raw_char_buf = (char *) ll_inmsg_node->value;
+        Frame * inframe = convert_char_to_frame(raw_char_buf);
+	short checksum;
+
+	checksum = chksum((unsigned short*) raw_char_buf, 
+			    MAX_FRAME_SIZE / 2);
+	if (checksum)
+	{
+	    fprintf(stderr, "send checksum error\n");
+	    free(raw_char_buf);
+	    continue;
+	}
+
+	if (sender->send_id == inframe->dst)
+	{
+	    if (inframe->flag == ACK)
+	    {
+		recv_ack(sender, inframe);
+	    }
+	}
+
+	free(inframe);
+	free(raw_char_buf);
+    }
+
 }
 
+Frame* build_frame(Sender* sender, char* message)
+{
+
+    Frame* frame;
+    frame = (Frame*) malloc(sizeof(Frame));
+
+    frame->dst = sender->recv_id;
+    frame->src = sender->send_id;
+
+    frame->seq = ++(sender->LFS);
+    frame->ack = sender->LAR;
+    frame->flag = SEND;
+    frame->size = strlen(message);
+    strcpy(frame->data, message);
+
+    return frame;
+
+}
 void handle_pending(Sender * sender,
                        LLnode ** outgoing_frames_head_ptr)
 {
@@ -66,8 +142,29 @@ void handle_pending(Sender * sender,
 	LLnode * ll_message = ll_pop_node(&(sender->pending_head));
         char * message = (char *) ll_message->value;
 
-	fprintf(stderr, "message=%s\n",message);
+	Frame* outframe;
+	outframe = build_frame(sender, message);
+	print_frame(outframe);
+
+	//fprintf(stderr, "message=%s\n",message);
 	
+	//copy to buffer
+	unsigned char pos;
+	pos = outframe->seq % sender->SWS;
+	free(sender->buffer[pos]);
+	*(sender->buffer + pos) = (struct Frame*)outframe;
+	
+	//set time
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	sender->timestamp[pos] = now;
+
+	//output
+	char* buf;
+	buf = add_chksum(outframe);
+	
+	ll_append_node(outgoing_frames_head_ptr, buf);
+	free(message);
     }
 }
 
@@ -101,6 +198,7 @@ void handle_input_cmds(Sender * sender,
         //      Ask yourself: Is this message actually going to the right receiver (recall that default behavior of send is to broadcast to all receivers)?
         //                    Does the receiver have enough space in in it's input queue to handle this message?
         //                    Were the previous messages sent to this receiver ACTUALLY delivered to the receiver?
+	sender->recv_id = outgoing_cmd->dst_id;
         int msg_length = strlen(outgoing_cmd->message);
         if (msg_length)
         {
@@ -119,6 +217,51 @@ void handle_timedout_frames(Sender * sender,
     //    1) Iterate through the sliding window protocol information you maintain for each receiver
     //    2) Locate frames that are timed out and add them to the outgoing frames
     //    3) Update the next timeout field on the outgoing frames
+    struct timeval now;
+    struct timeval tmp;
+    long long interval;
+    //find the timeout and send out
+    int pos;
+    int seq;
+    gettimeofday(&now, NULL);
+    for (seq = (sender->LAR + 1); seq <= sender->LFS; seq++)
+    {
+	//seq = sender->LAR + 1;
+	pos = seq % sender->SWS;
+
+	tmp = sender->timestamp[pos];
+	
+	if (tmp.tv_sec == 0)
+	{
+	    continue;
+	}
+	interval = (now.tv_sec - tmp.tv_sec) * 1000000
+		   + (now.tv_usec - tmp.tv_usec);
+
+	//if (interval < 100000)
+	if (interval < 10000)
+	    return;
+	fprintf(stderr, "sender:timeout!seq=%d\n",seq);
+	fprintf(stderr, "sender,now=%ld:%ld\n", now.tv_sec, now.tv_usec);
+	fprintf(stderr, "sender,tmp=%ld:%ld\n", tmp.tv_sec, tmp.tv_usec);
+	
+	Frame* outgoing_frame;
+	outgoing_frame = (Frame*)sender->buffer[pos];
+	sender->timestamp[pos] = now;
+
+	//char * buf = convert_frame_to_char(outgoing_frame);
+
+	//outgoing_frame->checksum = chksum((unsigned short*) buf, 
+	//			    MAX_FRAME_SIZE / 2);
+	//buf = convert_frame_to_char(outgoing_frame);
+	char* buf = add_chksum(outgoing_frame);
+	char* outgoing_charbuf = buf;
+	    
+	print_frame(outgoing_frame);
+	ll_append_node(outgoing_frames_head_ptr,
+		       outgoing_charbuf);
+    }
+
 }
 
 
@@ -223,8 +366,10 @@ void * run_sender(void * input_sender)
 
 
         //Implement this
+	//Cancel temportoly
         handle_timedout_frames(sender,
                                &outgoing_frames_head);
+
 
         //CHANGE THIS AT YOUR OWN RISK!
         //Send out all the frames

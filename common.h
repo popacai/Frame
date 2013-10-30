@@ -128,6 +128,7 @@ typedef struct Receiver_t Receiver;
 #define SEND 1
 #define ACK 2
 #define FIN 3
+#define MAX_SEQ 256
 struct Frame_t
 {
     //char data[FRAME_PAYLOAD_SIZE];
@@ -138,8 +139,8 @@ struct Frame_t
     unsigned char seq;
     unsigned char ack;
     unsigned char flag;
-    unsigned char window_size;
-    //unsigned char size;
+    //unsigned char window_size;
+    unsigned char size;
 };
 typedef struct Frame_t Frame;
 

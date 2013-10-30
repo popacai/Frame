@@ -1,12 +1,117 @@
 #include "receiver.h"
+#include "chksum.h"
 
+void print_f(Frame* frame)
+{
+    fprintf(stderr, "\nframe:\n");
+//    fprintf(stderr, "frame->src=%d\n", frame->src);
+//    fprintf(stderr, "frame->dst=%d\n", frame->dst);
+//    fprintf(stderr, "frame->checksum=%d\n", frame->checksum);
+    fprintf(stderr, "frame->seq=%d\n", frame->seq);
+    fprintf(stderr, "frame->ack=%d\n", frame->ack);
+    fprintf(stderr, "frame->flag=%d\n", frame->flag);
+//    fprintf(stderr, "frame->window_size=%d\n", frame->window_size);
+    fprintf(stderr, "frame->data=%s\n", frame->data);
+    fprintf(stderr, "#frame--------\n");
+}
+
+void print_receiver(Receiver * receiver)
+{
+    fprintf(stderr, "receiver:\n");
+    fprintf(stderr, "receiver->LFR=%d\n", receiver->LFR);
+    fprintf(stderr, "receiver->LAF=%d\n", receiver->LAF);
+    fprintf(stderr, "receiver->RWS=%d\n", receiver->RWS);
+    fprintf(stderr, "receiver->fin=%d\n", receiver->fin);
+}
 void init_receiver(Receiver * receiver,
                    int id)
 {
     receiver->recv_id = id;
     receiver->input_framelist_head = NULL;
+
+    receiver->RWS = 8;
+    receiver->LFR = 0;
+    receiver->LAF = receiver->LFR + receiver->RWS;
+    receiver->fin = 0;
+
+    receiver->buffer = malloc(8 * sizeof(Frame*));
+    int i; 
+    Frame* frame;
+    for (i = 0; i < receiver->RWS; i++)
+    {
+	frame = (Frame*) malloc(sizeof(Frame));
+	frame->seq = -1;
+	frame->ack = -1;
+	receiver->buffer[i] = (struct Frame*)frame;
+    }
 }
 
+Frame* build_ack(Receiver * receiver,
+      			  Frame* inframe)
+{
+    Frame* outframe;
+    outframe = (Frame*) malloc(sizeof(Frame));
+    //dst
+    outframe->src = inframe->dst;
+    outframe->dst = inframe->src;
+    outframe->flag = ACK;
+    outframe->seq = inframe->seq;
+    //outframe->ack = inframe->seq;
+    outframe->ack = receiver->LFR;
+
+    if (!(inframe->seq > (receiver->LFR % MAX_SEQ)
+	&& inframe->seq <= (receiver->LAF % MAX_SEQ)))
+    {
+	fprintf(stderr, "error windows\n");
+	print_f(inframe);
+	print_receiver(receiver);
+	return outframe;
+    }
+
+    int pos;
+    pos = inframe->seq % receiver->RWS;
+
+    free(receiver->buffer[pos]); // Free the pervious one
+    receiver->buffer[pos] = (struct Frame*)inframe;
+
+    unsigned char iseq; // temp seq;  [LAR .. tseq]
+    unsigned char ipos;
+    int all_recv = 1;
+    Frame* tmp;
+    //for (iseq = inframe->seq; (iseq > receiver->LFR) && iseq >= 0; iseq--)
+    for (iseq = (receiver->LFR + 1); iseq != (inframe->seq + 1); iseq++)
+    {
+	ipos = iseq % receiver->RWS;
+	tmp = (Frame*)receiver->buffer[ipos];
+	if (iseq == tmp->seq)
+	{
+	    continue;
+	}
+	else
+	{
+	    all_recv = 0;
+	    break;
+	}
+    }
+    //update the LFR&LAR if all_recv
+    if (all_recv)
+    {
+	//copy_buffer(receiver, inframe->seq);
+	for (iseq = (receiver->LFR + 1); iseq != (inframe->seq + 1); iseq++)
+	{
+	    ipos = iseq % receiver->RWS;
+	    tmp = (Frame*)receiver->buffer[ipos];
+	    printf("<RECV_%d>:[%s]\n", receiver->recv_id, tmp->data);
+	}
+	receiver->LFR = inframe->seq;
+	receiver->LAF = receiver->LFR + receiver->RWS;
+    }
+
+    outframe->ack = receiver->LFR;
+
+    return outframe;
+
+}
 
 void handle_incoming_msgs(Receiver * receiver,
                           LLnode ** outgoing_frames_head_ptr)
@@ -31,14 +136,30 @@ void handle_incoming_msgs(Receiver * receiver,
         //                    Is this message corrupted?
         //                    Is this an old, retransmitted message?           
         char * raw_char_buf = (char *) ll_inmsg_node->value;
-        Frame * inframe = convert_char_to_frame(raw_char_buf);
         
+	if (chksum_all(raw_char_buf))
+	{
+	    fprintf(stderr, "chksum error\n");
+	    continue;
+	}
         //Free raw_char_buf
-        free(raw_char_buf);
-        
-        printf("<RECV_%d>:[%s]\n", receiver->recv_id, inframe->data);
+        Frame * inframe = convert_char_to_frame(raw_char_buf);
+	if (inframe->dst == receiver->recv_id)
+	{
+	    Frame * outframe;
+	    char* buf;
 
-        free(inframe);
+	    outframe = build_ack(receiver, inframe);
+
+	    //buf = convert_frame_to_char(outframe);
+	    buf = add_chksum(outframe);
+	    ll_append_node(outgoing_frames_head_ptr, buf);
+	    //printf("<RECV_%d>:[%s]\n", receiver->recv_id, inframe->data);
+	}
+
+
+	//free(inframe);
+	free(raw_char_buf);
         free(ll_inmsg_node);
     }
 }

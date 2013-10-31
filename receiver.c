@@ -56,7 +56,8 @@ Frame* build_ack(Receiver * receiver,
     outframe->dst = inframe->src;
     outframe->flag = ACK;
     outframe->seq = inframe->seq;
-    outframe->ack = receiver->LFR;
+    outframe->ack = inframe->seq;
+    //outframe->ack = receiver->LFR;
 
     //DEBUG
     //outframe->ack = inframe->seq;

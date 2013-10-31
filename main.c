@@ -15,6 +15,7 @@
 #include "communicate.h"
 #include "receiver.h"
 #include "sender.h"
+#include "glb.h"
 
 int main(int argc, char *argv[])
 {
@@ -97,6 +98,12 @@ int main(int argc, char *argv[])
       }
     }
 
+    number_sender = glb_senders_array_length;
+    number_receiver = glb_receivers_array_length;
+    
+    glb_receivers_array_length = glb_receivers_array_length * number_sender;
+    glb_senders_array_length = glb_senders_array_length * number_receiver;
+
     //Spot check the input variables
     if (glb_senders_array_length <= 0 ||
         glb_receivers_array_length <= 0 ||
@@ -140,8 +147,8 @@ int main(int argc, char *argv[])
          i < glb_senders_array_length;
          i++)
     {
-        init_sender(&glb_senders_array[i], i);
-        fprintf(stderr, "   send_id=%d\n", i);
+        init_sender(&glb_senders_array[i], i / number_receiver, i % number_receiver);
+        fprintf(stderr, "   send_id=%d recv_id=%d\n", i / number_receiver, i % number_receiver);
         
     }
 
@@ -152,8 +159,8 @@ int main(int argc, char *argv[])
          i < glb_receivers_array_length;
          i++)
     {
-        init_receiver(&glb_receivers_array[i], i);
-        fprintf(stderr, "   recv_id=%d\n", i);
+        init_receiver(&glb_receivers_array[i], i / number_sender, i % number_sender);
+        fprintf(stderr, "   recv_id=%d send_id=%d\n", i / number_sender, i % number_sender );
     }
     
     //Spawn sender threads

@@ -4,8 +4,8 @@
 void print_f(Frame* frame)
 {
     fprintf(stderr, "\nframe:\n");
-//    fprintf(stderr, "frame->src=%d\n", frame->src);
-//    fprintf(stderr, "frame->dst=%d\n", frame->dst);
+    fprintf(stderr, "frame->src=%d\n", frame->src);
+    fprintf(stderr, "frame->dst=%d\n", frame->dst);
 //    fprintf(stderr, "frame->checksum=%d\n", frame->checksum);
     fprintf(stderr, "frame->seq=%d\n", frame->seq);
     fprintf(stderr, "frame->ack=%d\n", frame->ack);
@@ -24,8 +24,9 @@ void print_receiver(Receiver * receiver)
     fprintf(stderr, "receiver->fin=%d\n", receiver->fin);
 }
 void init_receiver(Receiver * receiver,
-                   int id)
+                   int id, int src)
 {
+    receiver->send_id = src;
     receiver->recv_id = id;
     receiver->input_framelist_head = NULL;
 
@@ -151,19 +152,21 @@ void handle_incoming_msgs(Receiver * receiver,
 	    continue;
 	}
         Frame * inframe = convert_char_to_frame(raw_char_buf);
-	if (inframe->dst == receiver->recv_id)
+	if (inframe->src == receiver->send_id)
 	{
-	    Frame * outframe;
-	    char* buf;
+	    if (inframe->dst == receiver->recv_id)
+	    {
+		Frame * outframe;
+		char* buf;
 
-	    outframe = build_ack(receiver, inframe);
+		outframe = build_ack(receiver, inframe);
 
-	    buf = add_chksum(outframe);
-	    print_receiver(receiver);
-	    ll_append_node(outgoing_frames_head_ptr, buf);
-	    free(outframe);
+		buf = add_chksum(outframe);
+		print_receiver(receiver);
+		ll_append_node(outgoing_frames_head_ptr, buf);
+		free(outframe);
+	    }
 	}
-
 
 	//free(inframe);
 	free(raw_char_buf);

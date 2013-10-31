@@ -18,17 +18,19 @@ void print_frame(Frame* frame)
 void print_sender(Sender* sender)
 {
     fprintf(stderr, "sender:\n");
+    fprintf(stderr, "sender->recv_id=%d\n", sender->recv_id);
     fprintf(stderr, "sender->LAR=%d\n", sender->LAR);
     fprintf(stderr, "sender->LFS=%d\n", sender->LFS);
-    fprintf(stderr, "sender->SWS=%d\n", sender->SWS);
-    fprintf(stderr, "sender->full=%d\n", sender->send_full);
-    fprintf(stderr, "sender->fin=%d\n", sender->fin);
+    //fprintf(stderr, "sender->SWS=%d\n", sender->SWS);
+    //fprintf(stderr, "sender->full=%d\n", sender->send_full);
+    //fprintf(stderr, "sender->fin=%d\n", sender->fin);
 }
-void init_sender(Sender * sender, int id)
+void init_sender(Sender * sender, int id, int recv_id)
 {
     //TODO: You should fill in this function as necessary
     sender->send_id = id;
-    sender->recv_id = -1;
+    sender->recv_id = recv_id;
+    print_sender(sender);
     sender->input_cmdlist_head = NULL;
     sender->input_framelist_head = NULL;
     
@@ -113,9 +115,12 @@ void handle_incoming_acks(Sender * sender,
 
 	if (sender->send_id == inframe->dst)
 	{
-	    if (inframe->flag == ACK)
+	    if (sender->recv_id == inframe->src)
 	    {
-		recv_ack(sender, inframe);
+		if (inframe->flag == ACK)
+		{
+		    recv_ack(sender, inframe);
+		}
 	    }
 	}
 
@@ -181,7 +186,13 @@ void handle_pending(Sender * sender,
 	//output
 	char* buf;
 	buf = add_chksum(outframe);
-	
+
+	/*
+	fprintf(stderr,"$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+	print_frame(outframe);
+	print_sender(sender);
+	fprintf(stderr,"$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+	*/
 	ll_append_node(outgoing_frames_head_ptr, buf);
 	free(message);
 	free(ll_message);
@@ -218,7 +229,8 @@ void handle_input_cmds(Sender * sender,
         //      Ask yourself: Is this message actually going to the right receiver (recall that default behavior of send is to broadcast to all receivers)?
         //                    Does the receiver have enough space in in it's input queue to handle this message?
         //                    Were the previous messages sent to this receiver ACTUALLY delivered to the receiver?
-	sender->recv_id = outgoing_cmd->dst_id;
+	if (sender->recv_id == outgoing_cmd->dst_id)
+	{
         int msg_length = strlen(outgoing_cmd->message);
 	int i;
 	char* message;
@@ -235,6 +247,8 @@ void handle_input_cmds(Sender * sender,
 	    free(outgoing_cmd->message);
             free(outgoing_cmd);
         }
+
+	}
     }   
 }
 

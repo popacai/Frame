@@ -59,9 +59,9 @@ typedef struct LLnode_t LLnode;
 //Receiver and sender data structures
 struct Receiver_t
 {
-    struct Frame* *buffer;
     int buffer_pos;
 
+    struct Frame* *buffer;
     unsigned char LFR; // acked one
     unsigned char LAF; // To be acked
     unsigned char RWS; // 
@@ -78,6 +78,7 @@ struct Receiver_t
     LLnode * input_framelist_head;
     
     int recv_id;
+    int send_id;
 
 };
 

@@ -16,7 +16,7 @@
 #include "util.h"
 #include "communicate.h"
 
-void init_receiver(Receiver *, int);
+void init_receiver(Receiver *, int, int);
 void * run_receiver(void *);
 
 #endif

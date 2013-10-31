@@ -1,4 +1,5 @@
 #include "input.h"
+#include "glb.h"
 
 //*********************************************************************
 //NOTE: We will overwrite this file, so whatever changes you put here
@@ -204,14 +205,19 @@ void * run_stdinthread(void *threadid)
                         outgoing_cmd->message = outgoing_msg;
                         
                         //Add it to the appropriate input buffer 
-                        sender = &glb_senders_array[sender_id];
-                        
-                        //Lock the buffer, add to the input list, and signal the thread
-                        pthread_mutex_lock(&sender->buffer_mutex);
-                        ll_append_node(&sender->input_cmdlist_head,
-                                       (void *) outgoing_cmd);
-                        pthread_cond_signal(&sender->buffer_cv);
-                        pthread_mutex_unlock(&sender->buffer_mutex);
+			int i;
+			for (i = sender_id * number_receiver; i < (sender_id * number_receiver + number_receiver); i++)
+			{
+			    //sender = &glb_senders_array[sender_id];
+			    sender = &glb_senders_array[i];
+			    
+			    //Lock the buffer, add to the input list, and signal the thread
+			    pthread_mutex_lock(&sender->buffer_mutex);
+			    ll_append_node(&sender->input_cmdlist_head,
+					   (void *) outgoing_cmd);
+			    pthread_cond_signal(&sender->buffer_cv);
+			    pthread_mutex_unlock(&sender->buffer_mutex);
+			}
                     }
                 }
                 else

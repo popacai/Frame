@@ -1,2 +1,3 @@
-(sleep 1; for i in `seq 1 30`; do echo "msg 0 0 Packet: $i"; sleep 0.1 ;echo "msg 0 1 Packet: $i"; sleep 0.1; done; sleep 5; echo "exit") | ./tritontalk -r 2 -s 2 
-
+(sleep 1; for i in `seq 1 60`; do echo "msg 0 0 Packet: $i"; sleep 0.001; echo "msg 0 1 Packet: $i"; sleep 0.001; echo "msg 0 0 Packet: $i"; sleep 0.01; done; sleep 5; echo "exit") | ./tritontalk -r 2 -s 2 -c 0.2 -d 0.2 > output_debug > output
+(sleep 1; for i in `seq 1 60`; do echo "msg 0 0 Packet: $i"; sleep 0.001; echo "msg 1 0 Packet: $i"; sleep 0.001; echo "msg 0 0 Packet: $i"; sleep 0.01; done; sleep 5; echo "exit") | ./tritontalk -r 2 -s 2 -c 0.2 -d 0.2 > output_debug > output2
+(sleep 1; for i in `seq 1 60`; do echo "msg 0 0 Packet: $i"; sleep 0.001; echo "msg 1 0 Packet: $i"; sleep 0.001; echo "msg 2 0 Packet: $i"; sleep 0.001; echo "msg 3 0 Packet: $i"; sleep 0.001; echo "msg 4 0 Packet: $i"; sleep 0.001; echo "msg 0 1 Packet: $i"; sleep 0.001; echo "msg 0 2 Packet: $i"; sleep 0.01; done; sleep 10; echo "exit") | ./tritontalk -r 2 -s 5 -c 0.2 -d 0.2 > output_debug > output3

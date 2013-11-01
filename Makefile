@@ -12,7 +12,7 @@ OS = LINUX
 CCFLAGS = -Wall $(DEBUG) -D$(OS)
 
 # add object file names here
-OBJS = main.o util.o input.o communicate.o sender.o receiver.o chksum.o
+OBJS = main.o util.o input.o communicate.o sender.o receiver.o chksum.o crc.o
 
 all: tritontalk
 
@@ -32,5 +32,5 @@ submit: clean
 	rm -f project1.tgz; tar czvf project1.tgz *; turnin project1.tgz -c cs123f -p project1
 
 test:
-	#bash ./t.sh
-	./tritontalk -s 3 -r 3
+	bash ./t.sh
+	#./tritontalk -s 3 -r 3

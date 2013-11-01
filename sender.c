@@ -100,10 +100,9 @@ void handle_incoming_acks(Sender * sender,
         incoming_msgs_length = ll_get_length(sender->input_framelist_head);
         char * raw_char_buf = (char *) ll_inmsg_node->value;
         Frame * inframe = convert_char_to_frame(raw_char_buf);
-	short checksum;
+	unsigned char checksum;
 
-	checksum = chksum((unsigned short*) raw_char_buf, 
-			    MAX_FRAME_SIZE / 2);
+	checksum = chksum_all(raw_char_buf);
 	if (checksum)
 	{
 	    fprintf(stderr, "send checksum error\n");

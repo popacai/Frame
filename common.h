@@ -133,7 +133,7 @@ typedef struct Receiver_t Receiver;
 struct Frame_t
 {
     //char data[FRAME_PAYLOAD_SIZE];
-    unsigned short checksum;
+//    unsigned short checksum;
     char data[MAX_FRAME_SIZE - FRAME_HEAD_SIZE];
     unsigned char src;
     unsigned char dst;
@@ -142,6 +142,8 @@ struct Frame_t
     unsigned char flag;
     //unsigned char window_size;
     unsigned char size;
+    unsigned char nop;
+    unsigned char checksum;
 };
 typedef struct Frame_t Frame;
 

@@ -27,7 +27,6 @@ void print_sender(Sender* sender)
 }
 void init_sender(Sender * sender, int id, int recv_id)
 {
-    //TODO: You should fill in this function as necessary
     sender->send_id = id;
     sender->recv_id = recv_id;
     print_sender(sender);
@@ -59,7 +58,7 @@ void init_sender(Sender * sender, int id, int recv_id)
 
 struct timeval * sender_get_next_expiring_timeval(Sender * sender)
 {
-    //TODO: You should fill in this function so that it returns the next timeout that should occur
+    //We do all the timeout check in handle_timedout function.
     return NULL;
 }
 
@@ -147,6 +146,8 @@ Frame* build_frame(Sender* sender, char* message)
 
     return frame;
 }
+
+//Send out all the frames which is in pending.
 void handle_pending(Sender * sender,
                        LLnode ** outgoing_frames_head_ptr)
 {
@@ -235,7 +236,7 @@ void handle_input_cmds(Sender * sender,
 	char* message;
         if (msg_length)
         {
-            //At this point, we don't need the outgoing_cmd
+	    //split message. 
 	    for (i = 0; i <= (msg_length / (FRAME_PAYLOAD_SIZE - 1)); i++) // we need a char for \0
 	    {
 		message = malloc(FRAME_PAYLOAD_SIZE);
@@ -288,7 +289,7 @@ void handle_timedout_frames(Sender * sender,
 
 	//if (interval < 100000)
 	if (interval < 100000)
-	    return;
+	    continue;
 	fprintf(stderr, "sender:timeout!seq=%d\n",seq);
 	fprintf(stderr, "sender,now=%ld:%ld\n", now.tv_sec, now.tv_usec);
 	fprintf(stderr, "sender,tmp=%ld:%ld\n", tmp.tv_sec, tmp.tv_usec);

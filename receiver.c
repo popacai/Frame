@@ -84,7 +84,7 @@ Frame* build_ack(Receiver * receiver,
     int largest_one = receiver->LFR;
     Frame* tmp;
     //for (iseq = inframe->seq; (iseq > receiver->LFR) && iseq >= 0; iseq--)
-    for (iseq = (receiver->LFR + 1); iseq != receiver->LFR; iseq++)
+    for (iseq = (receiver->LFR + 1); iseq != (receiver->LFR); iseq++)
     {
 	ipos = iseq % receiver->RWS;
 	tmp = (Frame*)receiver->buffer[ipos];

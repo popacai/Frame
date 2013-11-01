@@ -81,10 +81,10 @@ Frame* build_ack(Receiver * receiver,
 
     unsigned char iseq; // temp seq;  [LAR .. tseq]
     unsigned char ipos;
-    int all_recv = 1;
+    int largest_one = receiver->LFR;
     Frame* tmp;
     //for (iseq = inframe->seq; (iseq > receiver->LFR) && iseq >= 0; iseq--)
-    for (iseq = (receiver->LFR + 1); iseq != (inframe->seq + 1); iseq++)
+    for (iseq = (receiver->LFR + 1); iseq != receiver->LFR; iseq++)
     {
 	ipos = iseq % receiver->RWS;
 	tmp = (Frame*)receiver->buffer[ipos];
@@ -94,22 +94,25 @@ Frame* build_ack(Receiver * receiver,
 	}
 	else
 	{
-	    all_recv = 0;
+	    largest_one = iseq - 1;
 	    break;
 	}
     }
     //update the LFR&LAR if all_recv
-    if (all_recv)
+    //if (all_recv)
+    if (largest_one != receiver->LFR)
     {
 	//printf("-----------------------\n");
 	//copy_buffer(receiver, inframe->seq);
-	for (iseq = (receiver->LFR + 1); iseq != (inframe->seq + 1); iseq++)
+	//for (iseq = (receiver->LFR + 1); iseq != (inframe->seq + 1); iseq++)
+	for (iseq = (receiver->LFR + 1); iseq != (largest_one + 1); iseq++)
 	{
 	    ipos = iseq % receiver->RWS;
 	    tmp = (Frame*)receiver->buffer[ipos];
 	    printf("<RECV_%d>:[%s]\n", receiver->recv_id, tmp->data);
 	}
-	receiver->LFR = inframe->seq;
+	//receiver->LFR = inframe->seq;
+	receiver->LFR = largest_one;
 	receiver->LAF = receiver->LFR + receiver->RWS;
         //printf("-----------------------\n");
     }

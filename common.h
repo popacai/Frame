@@ -123,8 +123,8 @@ typedef struct Receiver_t Receiver;
 //TODO: You should change this!
 //Remember, your frame can be AT MOST 64 bytes!
 //#define FRAME_PAYLOAD_SIZE 58
-#define FRAME_PAYLOAD_SIZE 56
-#define FRAME_HEAD_SIZE 8
+#define FRAME_PAYLOAD_SIZE 54
+#define FRAME_HEAD_SIZE 10
 
 #define SEND 1
 #define ACK 2
@@ -133,7 +133,7 @@ typedef struct Receiver_t Receiver;
 struct Frame_t
 {
     //char data[FRAME_PAYLOAD_SIZE];
-//    unsigned short checksum;
+    unsigned short checksum;
     char data[MAX_FRAME_SIZE - FRAME_HEAD_SIZE];
     unsigned char src;
     unsigned char dst;
@@ -143,7 +143,7 @@ struct Frame_t
     //unsigned char window_size;
     unsigned char size;
     unsigned char nop;
-    unsigned char checksum;
+    unsigned char crc;
 };
 typedef struct Frame_t Frame;
 

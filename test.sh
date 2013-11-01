@@ -57,7 +57,7 @@ check_output 2
 echo -n "Test case 3: Sending 10 packets (with corrupt probability of 40%) and expecting receiver to print them out in order: "
 (sleep 0.5; for i in `seq 1 50`; do echo "msg 0 0 Packet: $i"; sleep 0.01; done; sleep 30; echo "exit") | ./tritontalk -c 0.9 -r 1 -s 1 > .output.3 2> .debug_output.3
 
-(for i in `seq 1 100`; do echo "<RECV_0>:[Packet: $i]"; done) > .expected_output.3
+(for i in `seq 1 50`; do echo "<RECV_0>:[Packet: $i]"; done) > .expected_output.3
 
 check_output 3
 

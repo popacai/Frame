@@ -1,14 +1,5 @@
 #include <stdio.h>
 #include "crc.h"
-char calc_crc(unsigned char *data)
-{
-    unsigned char buf[MAX_FRAME_SIZE];
-    memcpy(buf, data, MAX_FRAME_SIZE);
-
-    //rightest buf[MAX_FRAME_SIZE - 1] is the crc;
-    crcOp(buf, MAX_FRAME_SIZE * 8);
-    return buf[0];
-}
 
 int shift(unsigned char *data, int size)
 {
